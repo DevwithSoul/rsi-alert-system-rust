@@ -187,6 +187,20 @@
   }
 
   .no-coins { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+
+  /* Sort Bar */
+  .sort-bar {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 12px; padding: 8px 0;
+  }
+  .sort-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .sort-btn {
+    background: transparent; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--muted); padding: 4px 12px; font-size: 12px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .sort-btn:hover { border-color: var(--blue); color: var(--text); }
+  .sort-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
 </style>
 </head>
 <body>
@@ -210,6 +224,14 @@
   <div class="affiliate-banner">
     <span class="badge">4% OFF</span>
     <span>Get <strong>4% bonus trading fee rebate</strong> — Lifetime! &nbsp;<a href="https://app.hyperliquid.xyz/join/BONUS500" target="_blank" rel="noopener noreferrer">Claim your rebate &#8594;</a></span>
+  </div>
+
+  <!-- Sort Controls -->
+  <div class="sort-bar">
+    <span class="sort-label">Sort:</span>
+    <button class="sort-btn active" data-sort="alert" onclick="setSort('alert')">Alert</button>
+    <button class="sort-btn" data-sort="high" onclick="setSort('high')">Highest RSI</button>
+    <button class="sort-btn" data-sort="low" onclick="setSort('low')">Lowest RSI</button>
   </div>
 
   <!-- Coin Cards -->
@@ -277,6 +299,7 @@
 // ── State ────────────────────────────────────────────────────────────────
 let coinData = {};
 let currentConfig = null;
+let sortMode = 'alert'; // 'alert' | 'high' | 'low'
 
 // ── Toast System ─────────────────────────────────────────────────────────
 function showToast(message, type, persistMs) {
@@ -410,9 +433,18 @@ function renderCards() {
   const ob = currentConfig ? currentConfig.overbought_threshold : 70;
   const os = currentConfig ? currentConfig.oversold_threshold : 30;
 
-  // Sort: overbought > oversold > loading > normal
-  // Alerting coins always float to the top
   values.sort((a, b) => {
+    if (sortMode === 'high') {
+      const ra = a.rsi ?? -1;
+      const rb = b.rsi ?? -1;
+      return rb - ra;
+    }
+    if (sortMode === 'low') {
+      const ra = a.rsi ?? 999;
+      const rb = b.rsi ?? 999;
+      return ra - rb;
+    }
+    // Default 'alert': overbought > oversold > loading > normal
     const prioA = a._loading ? 2 : a.rsi >= ob ? 0 : a.rsi <= os ? 1 : 3;
     const prioB = b._loading ? 2 : b.rsi >= ob ? 0 : b.rsi <= os ? 1 : 3;
     return prioA - prioB;
@@ -442,7 +474,7 @@ function renderCards() {
 
     return `<div class="card ${status}" data-symbol="${c.symbol}">
       <div class="card-left">
-        <div class="card-symbol"><a href="https://app.hyperliquid.xyz/trade/${c.display_name || c.symbol}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none">${c.display_name || c.symbol}</a></div>
+        <div class="card-symbol"><a href="https://app.hyperliquid.xyz/trade/${c.display_name || c.symbol}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none">${c.display_name || c.symbol}</a> <button class="btn-remove" onclick="removeCoin('${c.symbol}')" title="Remove ${c.display_name || c.symbol}">&times;</button></div>
         <div class="card-price">${c.symbol} &middot; <span>${priceDisplay}</span></div>
       </div>
       <div class="card-right">
@@ -451,6 +483,14 @@ function renderCards() {
       </div>
     </div>`;
   }).join('');
+}
+
+function setSort(mode) {
+  sortMode = mode;
+  document.querySelectorAll('.sort-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.sort === mode);
+  });
+  renderCards();
 }
 
 function renderCoinTags() {

@@ -120,8 +120,15 @@ async fn post_config_handler(
     let mut cfg = state.config.write().await;
 
     if let Some(coins) = update.coins {
-        if !coins.is_empty() {
-            cfg.coins = coins;
+        // Remove stale RSI data for coins no longer tracked
+        let removed: Vec<_> = cfg.coins.iter().filter(|c| !coins.contains(c)).cloned().collect();
+        cfg.coins = coins;
+        if !removed.is_empty() {
+            let mut data = state.rsi_data.write().await;
+            for symbol in &removed {
+                data.remove(symbol);
+            }
+            tracing::info!("Removed stale RSI data for: {:?}", removed);
         }
     }
     if let Some(interval) = update.interval {
